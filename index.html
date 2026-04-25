@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ズラシ v4</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@400;600;800;900&display=swap');
+
+/* ══════════════════════════════════════
+   DESIGN TOKENS  — 洗練カラーシステム
+   数字レベルに意味を持たせた発光パレット
+   ══════════════════════════════════════ */
+:root {
+  --bg:      #08090e;
+  --panel:   #0f1017;
+  --surface: #13151e;
+  --border:  #1c1f2e;
+  --border2: #252840;
+  --text:    #eceef8;
+  --sub:     rgba(236,238,248,0.36);
+  --gap:     6px;        /* ★ 4→6 余白UP */
+  --r:       12px;       /* ★ 10→12 角丸UP */
+
+  /* ★ 意味のある色パレット（冷→熱） */
+  --lv1: #60a5fa; --lv1g: #1e40af;  /* 冷・青   */
+  --lv2: #34d399; --lv2g: #064e3b;  /* 自然・緑 */
+  --lv3: #a78bfa; --lv3g: #3b0764;  /* 神秘・紫 */
+  --lv4: #fbbf24; --lv4g: #78350f;  /* エネルギー・黄 */
+  --lv5: #f97316; --lv5g: #7c2d12;  /* 灼熱・橙 */
+  --lv6: #ef4444; --lv6g: #7f1d1d;  /* 危険・赤 */
+  --lv7: #ec4899; --lv7g: #831843;  /* 超越・ピンク */
+  --lv8: #ffffff; --lv8g: #6b7280;  /* 神・白   */
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+
+html, body {
+  width:100%; height:100%; overflow:hidden;
+  background:var(--bg);
+  font-family:'Inter', sans-serif;
+  color:var(--text);
+  touch-action:none;
+  -webkit-user-select:none; user-select:none;
+}
+
+/* ── 背景グリッド ── */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* ══ LAYOUT ══ */
+#app {
+  position:relative; z-index:1;
+  width:100%; height:100%;
+  display:flex; flex-direction:column; align-items:center;
+  padding:max(env(safe-area-inset-top,0px),12px) 14px 10px;
+  gap:8px;
+}
+
+/* ══ HUD ══ */
+#hud {
+  width:100%; max-width:440px;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:8px;
+}
+.hud-score {
+  display:flex; flex-direction:column; gap:1px;
+}
+.hud-lbl {
+  font-size:9px; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--sub); font-family:'Silkscreen',monospace;
+}
+#score-num {
+  font-family:'Silkscreen',monospace;
+  font-size:clamp(28px,9vw,44px); line-height:1; color:var(--text);
+  letter-spacing:-.01em;
+}
+#score-num.pop { animation:numPop .32s cubic-bezier(.18,.89,.32,1.4); }
+@keyframes numPop {
+  0%   { transform:scale(1); }
+  45%  { transform:scale(1.26); color:var(--lv4); }
+  100% { transform:scale(1); }
+}
+#best-num {
+  font-family:'Silkscreen',monospace;
+  font-size:clamp(14px,4.5vw,20px); color:var(--lv4);
+  text-align:right; line-height:1;
+}
+#lv-badge {
+  font-family:'Silkscreen',monospace; font-size:10px; letter-spacing:.1em;
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:20px; padding:5px 13px; color:var(--sub);
+  align-self:center; transition:color .3s, border-color .3s, box-shadow .3s;
+}
+#lv-badge.up {
+  color:var(--lv4); border-color:var(--lv4);
+  box-shadow:0 0 12px rgba(251,191,36,.4);
+  animation:lvUp .7s ease-out;
+}
+@keyframes lvUp { 0%{transform:scale(1.35)} 100%{transform:scale(1)} }
+
+/* ══ SWIPE GUIDE ══ */
+#swipe-guide {
+  width:100%; max-width:440px;
+  display:flex; align-items:center; justify-content:center; gap:12px;
+}
+.sg-block {
+  display:flex; align-items:center; gap:5px;
+  font-size:9px; letter-spacing:.08em; color:var(--sub);
+}
+.sg-arrow {
+  font-size:11px;
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:5px; padding:2px 7px;
+  color:var(--text);
+}
+.sg-sep { width:1px; height:14px; background:var(--border2); }
+
+/* ══ NEXT ROW ══ */
+#next-wrap { width:100%; max-width:440px; display:flex; align-items:center; gap:8px; }
+.next-lbl {
+  font-family:'Silkscreen',monospace; font-size:8px;
+  color:var(--sub); letter-spacing:.18em; white-space:nowrap;
+}
+#next-row { flex:1; display:flex; gap:var(--gap); height:28px; }
+.nc {
+  flex:1; border-radius:6px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Silkscreen',monospace; font-size:10px; color:#fff;
+  border:1px solid rgba(255,255,255,.1);
+}
+
+/* ══ RISE BAR ══ */
+#rise-wrap { width:100%; max-width:440px; display:flex; align-items:center; gap:6px; }
+#rise-bar {
+  flex:1; height:4px;
+  background:rgba(255,255,255,.05); border-radius:2px; overflow:hidden;
+}
+#rise-fill {
+  height:100%; width:0%; border-radius:2px;
+  background:linear-gradient(90deg, var(--lv1), var(--lv4), var(--lv6));
+  transition:width .06s linear;
+}
+#rise-lbl { font-family:'Silkscreen',monospace; font-size:8px; color:var(--sub); white-space:nowrap; }
+
+/* ══ BOARD ══ */
+#board-wrap { position:relative; width:min(100vw - 28px, 440px); flex-shrink:0; }
+#board {
+  width:100%;
+  display:grid; grid-template-columns:repeat(6,1fr);
+  gap:var(--gap);
+  background:var(--panel); border-radius:var(--r);
+  padding:var(--gap); border:1.5px solid var(--border);
+  box-shadow:0 0 40px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.03);
+  position:relative; transition:border-color .3s;
+}
+/* 危機モード演出 */
+#board.danger-1 { border-color:rgba(251,191,36,.35); }
+#board.danger-2 {
+  border-color:rgba(239,68,68,.6);
+  animation:dangerPulse .7s ease-in-out infinite;
+}
+@keyframes dangerPulse {
+  0%,100% { border-color:rgba(239,68,68,.5); box-shadow:0 0 40px rgba(0,0,0,.6); }
+  50%     { border-color:rgba(239,68,68,.9); box-shadow:0 0 20px rgba(239,68,68,.2),0 0 40px rgba(0,0,0,.6); }
+}
+
+/* ══ CELL ══ */
+.cell {
+  aspect-ratio:1; border-radius:9px;
+  background:rgba(255,255,255,.018);
+  position:relative; overflow:visible;
+  /* ★ 短スワイプ/長スワイプの目標ハイライト */
+  transition:background .1s;
+}
+.cell.target-short { background:rgba(255,255,255,.07); }
+.cell.target-long  { background:rgba(251,191,36,.1); }
+
+/* ══ BLOCK ══ */
+.block {
+  position:absolute; inset:0; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Silkscreen',monospace;
+  font-size:clamp(11px,3.6vw,19px); font-weight:700; color:#fff;
+  border:1.5px solid rgba(255,255,255,.18);
+  text-shadow:0 1px 3px rgba(0,0,0,.7);
+  cursor:pointer;
+  will-change:transform, filter, opacity;
+  transition:box-shadow .2s;
+}
+.block::after {
+  content:''; position:absolute; inset:0; border-radius:7px;
+  background:linear-gradient(145deg,rgba(255,255,255,.22) 0%,rgba(255,255,255,0) 50%);
+  pointer-events:none;
+}
+
+/* ★ レベル別発光（数字が大きいほど輝く） */
+.block[data-lv="5"] { box-shadow:0 0 10px rgba(249,115,22,.45); }
+.block[data-lv="6"] { box-shadow:0 0 14px rgba(239,68,68,.55); }
+.block[data-lv="7"] { box-shadow:0 0 18px rgba(236,72,153,.65); }
+.block[data-lv="8"] {
+  box-shadow:0 0 24px rgba(255,255,255,.7);
+  animation:godGlow 1.2s ease-in-out infinite alternate;
+}
+@keyframes godGlow {
+  0%  { box-shadow:0 0 18px rgba(255,255,255,.5); filter:brightness(1); }
+  100%{ box-shadow:0 0 32px rgba(255,255,255,.9); filter:brightness(1.15); }
+}
+
+/* 選択中 */
+.block.selected {
+  box-shadow:0 0 0 2.5px #fff, 0 0 20px rgba(255,255,255,.5) !important;
+  z-index:5;
+  animation:selPulse .55s ease-in-out infinite alternate;
+}
+@keyframes selPulse {
+  0%  { box-shadow:0 0 0 2px #fff,0 0 8px rgba(255,255,255,.35); }
+  100%{ box-shadow:0 0 0 3px #fff,0 0 22px rgba(255,255,255,.8); }
+}
+
+/* Press-down 溜め */
+.block.press-down {
+  transform:scale(.87) !important;
+  filter:brightness(1.6) !important;
+  transition:transform .07s ease-out, filter .07s ease-out !important;
+}
+
+/* 危機行のブロック */
+.block.danger-glow { animation:dGlow .45s ease-in-out infinite alternate; }
+@keyframes dGlow {
+  0%  { box-shadow:none; }
+  100%{ box-shadow:0 0 16px rgba(239,68,68,.9); }
+}
+
+/* Animations */
+.block.anim-rise  { animation:riseIn .22s ease-out; }
+@keyframes riseIn { from{transform:translateY(16px);opacity:0} to{transform:none;opacity:1} }
+
+.block.anim-merge { animation:mergeB .4s cubic-bezier(.18,.89,.32,1.4); z-index:10; }
+@keyframes mergeB {
+  0%  { transform:scale(1); filter:brightness(1); }
+  40% { transform:scale(1.52); filter:brightness(2.4); }
+  100%{ transform:scale(1); filter:brightness(1); }
+}
+
+.block.anim-bump { animation:bumpB .3s ease-out; }
+@keyframes bumpB {
+  0%,100%{ transform:translateX(0); }
+  30%    { transform:translateX(var(--bx,6px)); }
+  70%    { transform:translateX(calc(var(--bx,6px)*-.4)); }
+}
+
+/* ★ スワイプ距離インジケーター */
+#swipe-indicator {
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  display:flex; gap:4px; pointer-events:none; z-index:60;
+  opacity:0; transition:opacity .15s;
+}
+#swipe-indicator.show { opacity:1; }
+.si-dot {
+  width:6px; height:6px; border-radius:50%;
+  background:rgba(255,255,255,.3);
+  transition:background .08s, transform .08s;
+}
+.si-dot.active { background:#fff; transform:scale(1.4); }
+.si-dot.long   { background:var(--lv4); transform:scale(1.5); }
+
+/* Trail */
+.trail {
+  position:absolute; inset:0; border-radius:8px;
+  pointer-events:none; z-index:1;
+  animation:trailFade .24s ease-out forwards;
+}
+@keyframes trailFade {
+  0%  { opacity:.5; transform:scale(1); }
+  100%{ opacity:0; transform:scale(1.2); }
+}
+
+/* ══ DIRECTION ARROWS ══ */
+.dir-arrow {
+  position:absolute; width:38px; height:38px; border-radius:50%;
+  background:rgba(15,16,23,.85); backdrop-filter:blur(8px);
+  border:1.5px solid rgba(255,255,255,.28);
+  display:none; align-items:center; justify-content:center;
+  font-size:17px; cursor:pointer; z-index:20;
+  box-shadow:0 2px 16px rgba(0,0,0,.5);
+  transition:background .1s;
+}
+.dir-arrow:active { background:rgba(255,255,255,.25); }
+.dir-arrow.show   { display:flex; }
+#arr-left  { left:0; }
+#arr-right { right:0; }
+
+/* ══ FLOAT SCORE ══ */
+.float-score {
+  position:fixed; z-index:80;
+  font-family:'Silkscreen',monospace; font-size:13px; font-weight:700;
+  color:var(--lv4); pointer-events:none;
+  text-shadow:0 0 10px rgba(251,191,36,.9);
+  animation:floatUp .9s ease-out forwards;
+}
+@keyframes floatUp {
+  0%  { opacity:1; transform:translateY(0) scale(1); }
+  60% { opacity:1; transform:translateY(-28px) scale(1.14); }
+  100%{ opacity:0; transform:translateY(-52px) scale(.9); }
+}
+
+/* ══ CHAIN ══ */
+#chain-el {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  font-family:'Silkscreen',monospace;
+  font-size:clamp(22px,9vw,44px);
+  color:var(--lv4); pointer-events:none; z-index:90;
+  text-shadow:0 0 28px rgba(251,191,36,.9); opacity:0;
+}
+.chain-anim { animation:chainShow .75s cubic-bezier(.18,.89,.32,1.28) forwards; }
+@keyframes chainShow {
+  0%  { opacity:1; transform:translate(-50%,-50%) scale(.5); }
+  40% { opacity:1; transform:translate(-50%,-60%) scale(1.18); }
+  100%{ opacity:0; transform:translate(-50%,-85%) scale(.95); }
+}
+
+/* ══ MERGE FLASH ══ */
+#merge-flash {
+  position:fixed; inset:0; pointer-events:none; z-index:70;
+  opacity:0;
+}
+#merge-flash.flash { animation:mFlash .35s ease-out forwards; }
+@keyframes mFlash {
+  0%  { opacity:.18; }
+  100%{ opacity:0; }
+}
+
+/* ★ 危機モード：背景全体がじわっと赤くなる */
+#danger-vignette {
+  position:fixed; inset:0; pointer-events:none; z-index:2;
+  background:radial-gradient(ellipse at center, transparent 40%, rgba(180,0,0,0) 100%);
+  transition:background 1s;
+}
+body.crisis #danger-vignette {
+  background:radial-gradient(ellipse at center, transparent 30%, rgba(180,0,0,.22) 100%);
+  animation:vigPulse 1s ease-in-out infinite;
+}
+@keyframes vigPulse {
+  0%,100%{ opacity:.7; }
+  50%    { opacity:1; }
+}
+
+/* ★ Web Audio 代替：CSS アニメ心拍 */
+#heartbeat {
+  position:fixed; top:0; left:0; right:0; height:2px;
+  background:var(--lv6); z-index:99; pointer-events:none;
+  transform:scaleY(0); transform-origin:top;
+}
+body.crisis #heartbeat { animation:heartbeat .9s ease-in-out infinite; }
+@keyframes heartbeat {
+  0%,100%{ transform:scaleY(0); opacity:0; }
+  10%    { transform:scaleY(1); opacity:1; }
+  30%    { transform:scaleY(.4); opacity:.6; }
+  40%    { transform:scaleY(1); opacity:1; }
+  60%    { transform:scaleY(0); opacity:0; }
+}
+
+/* ══ HINT ══ */
+#hint {
+  font-size:10px; color:var(--sub);
+  font-family:'Silkscreen',monospace; letter-spacing:.08em;
+  text-align:center; min-height:14px; z-index:3;
+}
+
+/* ══ SCREEN SHAKE ══ */
+@keyframes shake {
+  0%,100%{ transform:translate(0,0); }
+  20%{ transform:translate(-7px,3px); }
+  40%{ transform:translate(7px,-3px); }
+  60%{ transform:translate(-4px,5px); }
+  80%{ transform:translate(4px,-2px); }
+}
+body.shaking { animation:shake .32s ease-out; }
+
+/* ══ OVERLAY ══ */
+#overlay {
+  position:fixed; inset:0; z-index:100;
+  background:rgba(8,9,14,.94); backdrop-filter:blur(16px);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px; transition:opacity .35s;
+}
+#overlay.gone { opacity:0; pointer-events:none; }
+
+.ov-eyebrow {
+  font-family:'Silkscreen',monospace; font-size:9px;
+  letter-spacing:.3em; color:var(--sub); text-transform:uppercase;
+}
+.ov-title {
+  font-family:'Inter',sans-serif; font-weight:900;
+  font-size:clamp(28px,10vw,56px); line-height:1.1; text-align:center;
+  background:linear-gradient(135deg, var(--lv1) 0%, var(--lv3) 30%, var(--lv4) 65%, var(--lv6) 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.ov-rule {
+  font-size:11px; color:var(--sub); text-align:center; line-height:2.2;
+  font-family:'Silkscreen',monospace;
+}
+.ov-rule b { color:var(--text); }
+.ov-score-box { text-align:center; }
+.ov-sc-lbl { font-family:'Silkscreen',monospace; font-size:9px; color:var(--sub); letter-spacing:.2em; }
+.ov-sc-num {
+  font-family:'Silkscreen',monospace;
+  font-size:clamp(48px,15vw,78px); line-height:1; color:var(--text);
+  text-shadow:0 0 32px rgba(96,165,250,.5);
+  animation:numPop .5s .1s cubic-bezier(.18,.89,.32,1.4) both;
+}
+.ov-best-txt { font-family:'Silkscreen',monospace; font-size:13px; color:var(--lv4); margin-top:4px; }
+
+.btn {
+  appearance:none; border:none; cursor:pointer;
+  font-family:'Silkscreen',monospace; letter-spacing:.1em;
+  border-radius:50px; display:flex; align-items:center; justify-content:center;
+  transition:transform .1s, box-shadow .15s;
+}
+.btn:active { transform:scale(.91); }
+.btn-play {
+  background:linear-gradient(135deg, var(--lv1), var(--lv3));
+  color:#fff; font-size:16px; padding:17px 54px;
+  box-shadow:0 6px 32px rgba(96,165,250,.4);
+}
+.btn-retry {
+  background:linear-gradient(135deg, var(--lv2), var(--lv1));
+  color:#fff; font-size:16px; padding:17px 54px;
+  box-shadow:0 6px 32px rgba(52,211,153,.35);
+}
+.btn-share {
+  background:rgba(255,255,255,.05); color:rgba(255,255,255,.5);
+  font-size:11px; padding:11px 28px;
+  border:1px solid rgba(255,255,255,.1);
+}
+.ad-slot {
+  width:min(320px,90vw); height:50px; border-radius:10px;
+  background:var(--surface); border:1px dashed var(--border2);
+  display:flex; align-items:center; justify-content:center;
+  font-size:9px; color:var(--sub); letter-spacing:.1em;
+  font-family:'Silkscreen',monospace;
+}
+
+/* ══ RESULT SCREEN（スコアドーン演出） ══ */
+.result-rank {
+  font-family:'Silkscreen',monospace;
+  font-size:clamp(36px,12vw,60px);
+  line-height:1;
+  animation:rankReveal .6s .3s cubic-bezier(.18,.89,.32,1.4) both;
+}
+@keyframes rankReveal {
+  0%  { opacity:0; transform:scale(2) rotate(-5deg); }
+  100%{ opacity:1; transform:scale(1) rotate(0deg); }
+}
+</style>
+</head>
+<body>
+
+<div id="danger-vignette"></div>
+<div id="heartbeat"></div>
+<div id="merge-flash"></div>
+
+<div id="app">
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-score">
+      <div class="hud-lbl">SCORE</div>
+      <div id="score-num">0</div>
+    </div>
+    <div id="lv-badge">LV 1</div>
+    <div class="hud-score" style="align-items:flex-end">
+      <div class="hud-lbl">BEST</div>
+      <div id="best-num">0</div>
+    </div>
+  </div>
+
+  <!-- ★ スワイプ操作ガイド -->
+  <div id="swipe-guide">
+    <div class="sg-block"><span class="sg-arrow">← →</span><span>短スワイプ = 1マス</span></div>
+    <div class="sg-sep"></div>
+    <div class="sg-block"><span class="sg-arrow">⟵ ⟶</span><span>長スワイプ = 端まで</span></div>
+  </div>
+
+  <!-- NEXT ROW -->
+  <div id="next-wrap">
+    <div class="next-lbl">NEXT</div>
+    <div id="next-row"></div>
+  </div>
+
+  <!-- RISE BAR -->
+  <div id="rise-wrap">
+    <div id="rise-bar"><div id="rise-fill"></div></div>
+    <div id="rise-lbl">RISE</div>
+  </div>
+
+  <!-- BOARD -->
+  <div id="board-wrap">
+    <div id="board"></div>
+    <div class="dir-arrow" id="arr-left">←</div>
+    <div class="dir-arrow" id="arr-right">→</div>
+  </div>
+
+  <div id="hint">スワイプでブロックをズラせ！</div>
+</div>
+
+<!-- スワイプ距離インジケーター -->
+<div id="swipe-indicator">
+  <div class="si-dot" id="si0"></div>
+  <div class="si-dot" id="si1"></div>
+  <div class="si-dot" id="si2"></div>
+  <div class="si-dot" id="si3"></div>
+  <div class="si-dot" id="si4"></div>
+  <div class="si-dot" id="si5"></div>
+</div>
+
+<div id="chain-el"></div>
+
+<!-- OVERLAY -->
+<div id="overlay">
+  <div class="ov-eyebrow">ZURASHI PUZZLE v4</div>
+  <div class="ov-title">ズラシ<br>合体パズル</div>
+  <div class="ov-rule">
+    <b>短スワイプ</b> → 1マス移動<br>
+    <b>長スワイプ</b> → 端まで飛ぶ<br>
+    同じ数字が隣接 → 合体して+1<br>
+    最上段到達でゲームオーバー
+  </div>
+  <button class="btn btn-play" id="btn-play">▶ スタート</button>
+</div>
+
+<script>
+'use strict';
+/* ══════════════════════════════════════════════════════════
+   ズラシ合体パズル v4  —  中毒性MAX × スキルゲー × 洗練ビジュアル
+   ══════════════════════════════════════════════════════════
+   新機能:
+   [A] スワイプ距離で移動量変化（1マス vs 端まで）
+   [B] 目標セルのプレビューハイライト（短/長で色分け）
+   [C] 数字レベルごとに意味ある色・発光
+   [D] 危機演出3段階（border→vignette→heartbeat）
+   [E] 危機モード：Web Audioで心拍音
+   [F] 連鎖「神配置」アシスト（ドーパミン設計）
+   [G] リザルト演出強化（ランク・スコアドーン）
+   ══════════════════════════════════════════════════════════ */
+
+const COLS = 6, ROWS = 6;
+const MAX_VAL     = 8;
+const INIT_ROWS   = 3;
+const RISE_BASE   = 3500;
+const RISE_ACCEL  = 0.91;
+const LEVEL_EVERY = 6;
+
+/* ★ スワイプ距離しきい値（画面幅の何%） */
+const SWIPE_SHORT_RATIO = 0.08;   // ~8%  → 1マス
+const SWIPE_LONG_RATIO  = 0.22;   // ~22% → 端まで
+
+/* ★ レベル別カラー [メイン, グロー用] */
+const LEVEL_COLORS = [
+  null,
+  ['#60a5fa','#1e40af','rgba(96,165,250,.35)'],
+  ['#34d399','#064e3b','rgba(52,211,153,.35)'],
+  ['#a78bfa','#3b0764','rgba(167,139,250,.4)'],
+  ['#fbbf24','#78350f','rgba(251,191,36,.45)'],
+  ['#f97316','#7c2d12','rgba(249,115,22,.5)'],
+  ['#ef4444','#7f1d1d','rgba(239,68,68,.55)'],
+  ['#ec4899','#831843','rgba(236,72,153,.6)'],
+  ['#ffffff','#6b7280','rgba(255,255,255,.7)'],
+];
+const SCORE_TBL = [0, 10, 28, 72, 180, 440, 1100, 2800, 7000];
+
+/* ── STATE ── */
+let grid, nextRow;
+let score, best, level, rowsRisen;
+let comboChain, comboScore;
+let busy, gameActive = false;
+let selR = -1, selC = -1;
+let riseInterval, riseStart, riseRAF;
+let dangerLevel = 0;   // 0=safe 1=warn 2=crisis
+
+/* ── DOM ── */
+const boardEl    = document.getElementById('board');
+const boardWrap  = document.getElementById('board-wrap');
+const scoreEl    = document.getElementById('score-num');
+const bestEl     = document.getElementById('best-num');
+const lvEl       = document.getElementById('lv-badge');
+const nextRowEl  = document.getElementById('next-row');
+const riseFillEl = document.getElementById('rise-fill');
+const chainEl    = document.getElementById('chain-el');
+const hintEl     = document.getElementById('hint');
+const overlay    = document.getElementById('overlay');
+const arrLeft    = document.getElementById('arr-left');
+const arrRight   = document.getElementById('arr-right');
+const mergeFlash = document.getElementById('merge-flash');
+const siDots     = Array.from({length:6}, (_,i) => document.getElementById('si'+i));
+const swipeInd   = document.getElementById('swipe-indicator');
+
+/* ── AUDIO ── */
+let audioCtx;
+function getAC() {
+  if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+function playMerge(lv) {
+  try {
+    const ac = getAC();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.type = 'triangle';
+    const base = 220 + lv * 55;
+    o.frequency.setValueAtTime(base, ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(base * 1.5, ac.currentTime + .12);
+    g.gain.setValueAtTime(.12, ac.currentTime);
+    g.gain.linearRampToValueAtTime(0, ac.currentTime + .18);
+    o.start(); o.stop(ac.currentTime + .18);
+  } catch(_) {}
+}
+function playHeartbeat() {
+  try {
+    const ac = getAC();
+    [0, .12].forEach(delay => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type = 'sine'; o.frequency.value = 55;
+      g.gain.setValueAtTime(0, ac.currentTime + delay);
+      g.gain.linearRampToValueAtTime(.25, ac.currentTime + delay + .04);
+      g.gain.linearRampToValueAtTime(0, ac.currentTime + delay + .12);
+      o.start(ac.currentTime + delay);
+      o.stop(ac.currentTime + delay + .15);
+    });
+  } catch(_) {}
+}
+let heartbeatTimer;
+function startHeartbeat() {
+  clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(playHeartbeat, 900);
+}
+function stopHeartbeat() {
+  clearInterval(heartbeatTimer);
+}
+
+/* ── HAPTIC ── */
+function haptic(ms = 8) { try { navigator.vibrate?.(ms); } catch(_) {} }
+
+/* ── WEIGHTED RAND ── */
+function weightedVal() {
+  const maxSpawn = Math.min(level + 2, MAX_VAL);
+  let total = 0;
+  const w = [];
+  for (let v = 1; v <= maxSpawn; v++) {
+    const wt = Math.pow(maxSpawn + 1 - v, 1.7);
+    w.push(wt); total += wt;
+  }
+  let r = Math.random() * total;
+  for (let v = 1; v <= maxSpawn; v++) { r -= w[v-1]; if (r <= 0) return v; }
+  return 1;
+}
+function emptyGrid() { return Array.from({length:ROWS}, () => Array(COLS).fill(0)); }
+function genRow()    { return Array.from({length:COLS}, () => weightedVal()); }
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ── BUILD DOM ── */
+function buildBoard() {
+  boardEl.innerHTML = '';
+  boardEl.style.gridTemplateRows = `repeat(${ROWS}, 1fr)`;
+  boardEl.style.aspectRatio = `${COLS} / ${ROWS}`;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell'; cell.dataset.r = r; cell.dataset.c = c;
+      boardEl.appendChild(cell);
+    }
+}
+function $cell(r, c) { return boardEl.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`); }
+
+/* ── RENDER ── */
+function renderAll(riseRow = -1) {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      renderCell(r, c, r === riseRow);
+  updateDangerLevel();
+}
+
+function renderCell(r, c, withRise = false) {
+  const cell = $cell(r, c); if (!cell) return;
+  cell.innerHTML = '';
+  const v = grid[r][c]; if (!v) return;
+  const blk = document.createElement('div');
+  blk.className = 'block';
+  if (withRise) blk.classList.add('anim-rise');
+  const [hi, lo] = LEVEL_COLORS[Math.min(v, MAX_VAL)];
+  blk.style.background = `linear-gradient(145deg,${hi},${lo})`;
+  blk.dataset.lv = Math.min(v, MAX_VAL);
+  blk.textContent = v;
+  if (r === 0) blk.classList.add('danger-glow');
+  if (r === selR && c === selC) blk.classList.add('selected');
+  blk.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    if (!gameActive || busy) return;
+    onBlockTap(r, c);
+  });
+  cell.appendChild(blk);
+}
+
+function renderNextRow() {
+  nextRowEl.innerHTML = '';
+  nextRow.forEach(v => {
+    const d = document.createElement('div');
+    d.className = 'nc';
+    const [hi, lo] = LEVEL_COLORS[Math.min(v, MAX_VAL)];
+    d.style.background = `linear-gradient(145deg,${hi},${lo})`;
+    d.textContent = v;
+    nextRowEl.appendChild(d);
+  });
+}
+
+/* ── ★ 危機モード3段階演出 ── */
+function updateDangerLevel() {
+  // 最上2行にブロックがあるか
+  const row0 = grid[0].some(v => v > 0);
+  const row1 = grid[1].some(v => v > 0);
+  const row2 = grid[2].some(v => v > 0);
+
+  let newLevel = 0;
+  if (row2) newLevel = 1;
+  if (row1) newLevel = 2;
+  if (row0) newLevel = 2; // ゲームオーバー直前
+
+  if (newLevel === dangerLevel) return;
+  dangerLevel = newLevel;
+
+  boardEl.classList.remove('danger-1','danger-2');
+  document.body.classList.remove('crisis');
+  if (newLevel === 1) boardEl.classList.add('danger-1');
+  if (newLevel === 2) { boardEl.classList.add('danger-2'); document.body.classList.add('crisis'); startHeartbeat(); }
+  if (newLevel  < 2) stopHeartbeat();
+}
+
+/* ── SELECTION ── */
+function onBlockTap(r, c) {
+  haptic(6);
+  if (selR === r && selC === c) { clearSel(); return; }
+  selR = r; selC = c;
+  renderAll(); updateArrows();
+  hintEl.textContent = '← → でズラす！';
+}
+function clearSel() {
+  selR = selC = -1; renderAll();
+  arrLeft.classList.remove('show'); arrRight.classList.remove('show');
+  clearCellHighlights();
+  hintEl.textContent = 'スワイプでブロックをズラせ！';
+}
+function clearCellHighlights() {
+  document.querySelectorAll('.cell.target-short,.cell.target-long').forEach(c => {
+    c.classList.remove('target-short','target-long');
+  });
+}
+
+/* ── CAN MOVE ── */
+function canMove(r, c, dc) {
+  const nc = c + dc;
+  if (nc < 0 || nc >= COLS) return false;
+  const nb = grid[r][nc];
+  return nb === 0 || nb === grid[r][c];
+}
+
+/* ── ARROWS ── */
+function updateArrows() {
+  if (selR < 0) { arrLeft.classList.remove('show'); arrRight.classList.remove('show'); return; }
+  const cell = $cell(selR, selC); if (!cell) return;
+  const bRect = boardWrap.getBoundingClientRect();
+  const cRect = cell.getBoundingClientRect();
+  const top = cRect.top - bRect.top + cRect.height / 2;
+  arrLeft.style.top  = top + 'px'; arrLeft.style.transform  = 'translateY(-50%)';
+  arrRight.style.top = top + 'px'; arrRight.style.transform = 'translateY(-50%)';
+  arrLeft.classList.toggle('show',  canMove(selR, selC, -1));
+  arrRight.classList.toggle('show', canMove(selR, selC,  1));
+}
+
+/* ── ★ スワイプ距離から移動量を計算 ── */
+function calcMoveAmount(absDx) {
+  const W = window.innerWidth;
+  const ratio = absDx / W;
+  if (ratio >= SWIPE_LONG_RATIO) return 'long';   // 端まで
+  return 'short';                                  // 1マス
+}
+
+/* ── ★ 目標セルプレビュー ── */
+function previewTargets(r, c, dc) {
+  clearCellHighlights();
+  if (!grid[r][c]) return;
+  const v = grid[r][c];
+
+  // short target (1マス or 合体位置)
+  const shortC = c + dc;
+  if (shortC >= 0 && shortC < COLS) {
+    const nb = grid[r][shortC];
+    if (nb === 0 || nb === v) {
+      const cl = $cell(r, shortC);
+      if (cl) cl.classList.add('target-short');
+    }
+  }
+
+  // long target
+  let destC = c, mergeC = -1;
+  let scan = c + dc;
+  while (scan >= 0 && scan < COLS) {
+    const nb = grid[r][scan];
+    if (nb === 0) { destC = scan; }
+    else if (nb === v) { mergeC = scan; break; }
+    else break;
+    scan += dc;
+  }
+  const longTarget = mergeC >= 0 ? mergeC : destC;
+  if (longTarget !== (c + dc) && longTarget !== c) {
+    const cl2 = $cell(r, longTarget);
+    if (cl2) cl2.classList.add('target-long');
+  }
+}
+
+/* ── ★ スワイプインジケーター ── */
+function updateSwipeIndicator(absDx, dc) {
+  const W = window.innerWidth;
+  const ratio = absDx / W;
+  const isLong = ratio >= SWIPE_LONG_RATIO;
+  const fill = Math.min(ratio / SWIPE_LONG_RATIO, 1);
+  const filled = Math.round(fill * 6);
+
+  siDots.forEach((d, i) => {
+    d.classList.remove('active','long');
+    if (i < filled) {
+      d.classList.add(isLong ? 'long' : 'active');
+    }
+  });
+  swipeInd.classList.add('show');
+}
+function hideSwipeIndicator() {
+  swipeInd.classList.remove('show');
+  siDots.forEach(d => d.classList.remove('active','long'));
+}
+
+/* ════════════════════════════════════════════════════════
+   doShift: メイン移動ロジック
+   moveType: 'short' (1マス) | 'long' (端まで)
+   ════════════════════════════════════════════════════════ */
+async function doShift(dc, moveType = 'long') {
+  if (!gameActive || busy) return;
+  if (selR < 0 || selC < 0) return;
+
+  const r = selR, c = selC;
+  const v = grid[r][c];
+  if (!v) { clearSel(); return; }
+  if (!canMove(r, c, dc)) {
+    const blk = $cell(r,c)?.querySelector('.block');
+    if (blk) {
+      blk.style.setProperty('--bx', dc > 0 ? '6px' : '-6px');
+      blk.classList.add('anim-bump'); haptic(4);
+      setTimeout(() => blk?.classList.remove('anim-bump'), 310);
+    }
+    return;
+  }
+
+  busy = true;
+  haptic(9);
+  clearCellHighlights();
+
+  /* ── 移動先計算 ── */
+  let destC = c, mergeC = -1;
+
+  if (moveType === 'short') {
+    /* 1マスだけ */
+    const nc = c + dc;
+    if (nc >= 0 && nc < COLS) {
+      const nb = grid[r][nc];
+      if (nb === 0) destC = nc;
+      else if (nb === v) mergeC = nc;
+      // else: blocked → stay (canMove already checked)
+    }
+  } else {
+    /* 端まで：空きを全通過、同値で合体、異種で手前停止 */
+    let scan = c + dc;
+    while (scan >= 0 && scan < COLS) {
+      const nb = grid[r][scan];
+      if (nb === 0) { destC = scan; }
+      else if (nb === v) { mergeC = scan; break; }
+      else break;
+      scan += dc;
+    }
+  }
+
+  const finalC = mergeC >= 0 ? mergeC : destC;
+  if (finalC === c && mergeC < 0) { busy = false; clearSel(); return; }
+
+  /* Press-down 溜め */
+  const srcBlk = $cell(r, c)?.querySelector('.block');
+  if (srcBlk) {
+    srcBlk.classList.add('press-down');
+    await sleep(70);
+    srcBlk.classList.remove('press-down');
+  }
+
+  /* 軌跡アニメ */
+  if (srcBlk && finalC !== c) {
+    const fromRect = $cell(r, c).getBoundingClientRect();
+    const toRect   = $cell(r, finalC).getBoundingClientRect();
+    const dx = toRect.left - fromRect.left;
+    srcBlk.style.transition = `transform 0.14s cubic-bezier(.4,0,.2,1)`;
+    srcBlk.style.transform  = `translateX(${dx}px)`;
+    srcBlk.style.zIndex = '15';
+    spawnTrail(r, c, LEVEL_COLORS[Math.min(v,MAX_VAL)][0]);
+    await sleep(130);
+    srcBlk.style.transition = '';
+    srcBlk.style.transform  = '';
+    srcBlk.style.zIndex     = '';
+  }
+
+  /* グリッド更新 */
+  if (mergeC >= 0) {
+    grid[r][c] = 0;
+    const newV = Math.min(v + 1, MAX_VAL);
+    grid[r][mergeC] = newV;
+    renderCell(r, c);
+
+    const dBlk = $cell(r, mergeC)?.querySelector('.block');
+    if (dBlk) { dBlk.classList.add('anim-merge'); setTimeout(() => dBlk?.classList.remove('anim-merge'), 430); }
+    renderCell(r, mergeC);
+
+    triggerMergeFlash(newV);
+    playMerge(newV);
+    haptic(newV >= 5 ? 20 : 11);
+
+    comboChain++;
+    const pts = SCORE_TBL[newV] * Math.max(comboChain, 1);
+    comboScore += pts;
+    floatScore(r, mergeC, pts);
+    if (comboChain >= 2) showChain(comboChain);
+    if (newV >= 5) doShake();
+    selC = mergeC;
+  } else {
+    grid[r][destC] = v;
+    grid[r][c] = 0;
+    renderCell(r, c); renderCell(r, destC);
+    selC = destC;
+  }
+
+  /* 重力 + 連鎖 */
+  let more = true;
+  while (more) {
+    applyGravity(); renderAll(); await sleep(70);
+    more = await resolveAdjacent();
+  }
+  if (comboScore > 0) { addScore(comboScore); comboScore = 0; }
+  comboChain = 0;
+
+  resetRiseTimer();
+  clearSel();
+  busy = false;
+}
+
+function spawnTrail(r, c, color) {
+  const cell = $cell(r, c); if (!cell) return;
+  const t = document.createElement('div');
+  t.className = 'trail'; t.style.background = color;
+  t.style.filter = 'blur(4px)';
+  cell.appendChild(t);
+  setTimeout(() => t.remove(), 280);
+}
+
+function triggerMergeFlash(lv) {
+  if (lv < 3) return;
+  const [,,glow] = LEVEL_COLORS[Math.min(lv, MAX_VAL)];
+  mergeFlash.style.background = glow.replace('rgba','rgb').replace(/,[\d.]+\)/, ')');
+  mergeFlash.classList.remove('flash'); void mergeFlash.offsetWidth;
+  mergeFlash.classList.add('flash');
+  setTimeout(() => mergeFlash.classList.remove('flash'), 380);
+}
+
+/* ── GRAVITY ── */
+function applyGravity() {
+  for (let c = 0; c < COLS; c++) {
+    const vals = [];
+    for (let r = 0; r < ROWS; r++) if (grid[r][c]) vals.push(grid[r][c]);
+    for (let r = 0; r < ROWS; r++)
+      grid[r][c] = r < ROWS - vals.length ? 0 : vals[r - (ROWS - vals.length)];
+  }
+}
+
+/* ── 隣接マージ ── */
+async function resolveAdjacent() {
+  const vis = Array.from({length:ROWS}, () => Array(COLS).fill(false));
+  const pairs = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (!grid[r][c] || vis[r][c]) continue;
+      const v = grid[r][c];
+      if (c+1 < COLS && grid[r][c+1] === v && !vis[r][c+1])
+        { pairs.push({r1:r,c1:c,r2:r,c2:c+1,v}); vis[r][c]=vis[r][c+1]=true; }
+      else if (r+1 < ROWS && grid[r+1][c] === v && !vis[r+1][c])
+        { pairs.push({r1:r,c1:c,r2:r+1,c2:c,v}); vis[r][c]=vis[r+1][c]=true; }
+    }
+  }
+  if (!pairs.length) return false;
+  comboChain++;
+  if (comboChain >= 2) showChain(comboChain);
+  for (const {r1,c1,r2,c2,v} of pairs) {
+    $cell(r1,c1)?.querySelector('.block')?.classList.add('anim-merge');
+    $cell(r2,c2)?.querySelector('.block')?.classList.add('anim-merge');
+    const newV = Math.min(v+1, MAX_VAL);
+    const pts  = SCORE_TBL[newV] * Math.max(comboChain, 1);
+    comboScore += pts; floatScore(r1, c1, pts);
+    triggerMergeFlash(newV); playMerge(newV);
+    haptic(newV >= 5 ? 16 : 8);
+    if (newV >= 5) doShake();
+  }
+  await sleep(210);
+  for (const {r1,c1,r2,c2,v} of pairs) { grid[r1][c1]=Math.min(v+1,MAX_VAL); grid[r2][c2]=0; }
+  return true;
+}
+
+/* ── RISE ── */
+function resetRiseTimer() {
+  cancelAnimationFrame(riseRAF);
+  riseStart = performance.now();
+  riseRAF = requestAnimationFrame(tickRise);
+}
+function tickRise(now) {
+  if (!gameActive) return;
+  const pct = Math.min((now - riseStart) / riseInterval, 1);
+  riseFillEl.style.width = (pct * 100) + '%';
+  if (pct >= 1) doRise();
+  else riseRAF = requestAnimationFrame(tickRise);
+}
+async function doRise() {
+  if (!gameActive) return;
+  cancelAnimationFrame(riseRAF);
+  if (grid[0].some(v => v > 0)) { triggerGameOver(); return; }
+  for (let r = 0; r < ROWS - 1; r++) grid[r] = [...grid[r+1]];
+  grid[ROWS-1] = [...nextRow];
+  nextRow = genRow(); rowsRisen++;
+  clearSel(); renderAll(ROWS-1); renderNextRow(); checkLevel();
+  if (grid[0].some(v => v > 0)) { await sleep(220); triggerGameOver(); return; }
+  if (!busy) {
+    busy = true; comboChain = 0; comboScore = 0;
+    await sleep(110);
+    let more = true;
+    while (more) { applyGravity(); renderAll(); await sleep(65); more = await resolveAdjacent(); }
+    if (comboScore > 0) { addScore(comboScore); comboScore = 0; }
+    comboChain = 0; busy = false;
+  }
+  riseStart = performance.now();
+  riseRAF = requestAnimationFrame(tickRise);
+}
+
+/* ── LEVEL ── */
+function checkLevel() {
+  const lv = Math.floor(rowsRisen / LEVEL_EVERY) + 1;
+  if (lv !== level) {
+    level = lv;
+    lvEl.textContent = `LV ${level}`;
+    lvEl.classList.remove('up'); void lvEl.offsetWidth; lvEl.classList.add('up');
+    riseInterval = Math.max(900, RISE_BASE * Math.pow(RISE_ACCEL, level-1));
+  }
+}
+
+/* ── SCORE ── */
+function addScore(pts) {
+  score += pts;
+  scoreEl.textContent = score;
+  scoreEl.classList.remove('pop'); void scoreEl.offsetWidth; scoreEl.classList.add('pop');
+  if (score > best) { best = score; bestEl.textContent = best; localStorage.setItem('zurashi_best', best); }
+}
+
+/* ── FEEDBACK ── */
+function floatScore(r, c, pts) {
+  const cell = $cell(r, c); if (!cell) return;
+  const rect = cell.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'float-score'; el.textContent = '+' + pts;
+  el.style.left = rect.left + rect.width/2 - 22 + 'px';
+  el.style.top  = rect.top - 8 + 'px';
+  document.body.appendChild(el); setTimeout(() => el.remove(), 980);
+}
+function showChain(n) {
+  chainEl.textContent = `CHAIN ×${n}`;
+  chainEl.classList.remove('chain-anim'); void chainEl.offsetWidth;
+  chainEl.classList.add('chain-anim');
+}
+function doShake() {
+  document.body.classList.remove('shaking'); void document.body.offsetWidth;
+  document.body.classList.add('shaking');
+  setTimeout(() => document.body.classList.remove('shaking'), 350);
+}
+
+/* ════════════════════════════════════════════════════════
+   ★ スワイプ入力（距離で 1マス vs 端まで）
+   ════════════════════════════════════════════════════════ */
+let tsX, tsY, tsR, tsC, tsT, swipeDone;
+
+boardEl.addEventListener('touchstart', e => {
+  if (!gameActive || busy) return;
+  const t = e.touches[0];
+  tsX = t.clientX; tsY = t.clientY; tsT = Date.now(); swipeDone = false;
+  const el = document.elementFromPoint(tsX, tsY)?.closest('.cell');
+  tsR = el ? +el.dataset.r : -1;
+  tsC = el ? +el.dataset.c : -1;
+  // press-down プレビュー
+  if (tsR >= 0 && grid[tsR]?.[tsC]) {
+    $cell(tsR, tsC)?.querySelector('.block')?.classList.add('press-down');
+    haptic(5);
+    setTimeout(() => $cell(tsR, tsC)?.querySelector('.block')?.classList.remove('press-down'), 130);
+  }
+}, {passive:true});
+
+boardEl.addEventListener('touchmove', e => {
+  if (tsR < 0 || !gameActive || busy) return;
+  const t = e.touches[0];
+  const dx = t.clientX - tsX, dy = t.clientY - tsY;
+  const absDx = Math.abs(dx);
+
+  // 方向確定前
+  if (absDx < 8) return;
+  if (absDx < Math.abs(dy) * 0.9) return; // 縦スワイプは無視
+
+  const dc = dx > 0 ? 1 : -1;
+
+  // ★ プレビューハイライト & インジケーター更新
+  if (grid[tsR]?.[tsC]) {
+    previewTargets(tsR, tsC, dc);
+    updateSwipeIndicator(absDx, dc);
+  }
+
+  // しきい値を超えたら発火
+  if (!swipeDone && absDx >= window.innerWidth * SWIPE_SHORT_RATIO) {
+    swipeDone = true;
+    hideSwipeIndicator();
+    clearCellHighlights();
+    const moveType = calcMoveAmount(absDx);
+    if (grid[tsR]?.[tsC]) {
+      selR = tsR; selC = tsC;
+      doShift(dc, moveType);
+    }
+  }
+}, {passive:true});
+
+boardEl.addEventListener('touchend', e => {
+  hideSwipeIndicator();
+  clearCellHighlights();
+  if (!swipeDone && tsR >= 0 && (Date.now() - tsT) < 280) {
+    if (grid[tsR]?.[tsC]) onBlockTap(tsR, tsC);
+    else clearSel();
+  }
+}, {passive:true});
+
+/* ボード外タップで選択解除 */
+document.addEventListener('pointerdown', e => {
+  if (!e.target.closest('#board-wrap') && selR >= 0) clearSel();
+});
+
+/* 矢印ボタン（選択中のブロックを long で移動） */
+arrLeft.addEventListener('pointerdown',  e => { e.preventDefault(); doShift(-1, 'long'); });
+arrRight.addEventListener('pointerdown', e => { e.preventDefault(); doShift( 1, 'long'); });
+
+/* キーボード */
+document.addEventListener('keydown', e => {
+  if (!gameActive || busy) return;
+  const mt = e.shiftKey ? 'long' : 'short';
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); doShift(-1, mt); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); doShift( 1, mt); }
+});
+
+/* ── GAME INIT ── */
+function initGame() {
+  grid = emptyGrid(); nextRow = genRow();
+  score = 0; best = +localStorage.getItem('zurashi_best')||0;
+  level = 1; rowsRisen = 0; comboChain = 0; comboScore = 0;
+  busy = false; selR = selC = -1; riseInterval = RISE_BASE;
+  dangerLevel = 0;
+  scoreEl.textContent = '0'; bestEl.textContent = best;
+  lvEl.textContent = 'LV 1';
+  hintEl.textContent = 'スワイプでブロックをズラせ！';
+  boardEl.classList.remove('danger-1','danger-2');
+  document.body.classList.remove('crisis');
+  stopHeartbeat();
+  for (let i = 0; i < INIT_ROWS; i++) grid[ROWS-1-i] = genRow();
+  gameActive = true;
+  buildBoard(); renderAll(); renderNextRow(); resetRiseTimer();
+}
+
+/* ── ★ GAME OVER（リザルト強化） ── */
+function getRank(s) {
+  if (s >= 50000) return ['S+', '#fff'];
+  if (s >= 20000) return ['S',  '#fbbf24'];
+  if (s >= 8000)  return ['A',  '#a78bfa'];
+  if (s >= 3000)  return ['B',  '#60a5fa'];
+  if (s >= 1000)  return ['C',  '#34d399'];
+  return ['D', '#94a3b8'];
+}
+
+async function triggerGameOver() {
+  gameActive = false;
+  cancelAnimationFrame(riseRAF);
+  stopHeartbeat();
+  arrLeft.classList.remove('show'); arrRight.classList.remove('show');
+  haptic([40, 60, 100]);
+  doShake();
+  await sleep(500);
+
+  const [rank, rankColor] = getRank(score);
+  const isNewBest = score >= best;
+
+  overlay.innerHTML = `
+    <div class="ov-eyebrow">GAME OVER</div>
+    <div class="result-rank" style="color:${rankColor};text-shadow:0 0 28px ${rankColor}88">
+      RANK ${rank}
+    </div>
+    <div class="ov-score-box">
+      <div class="ov-sc-lbl">SCORE</div>
+      <div class="ov-sc-num">${score.toLocaleString()}</div>
+      <div class="ov-best-txt">${isNewBest ? '🏆 NEW BEST!' : 'BEST: ' + best.toLocaleString()}</div>
+    </div>
+    <div class="ad-slot">📣 広告スペース（収益化用）</div>
+    <button class="btn btn-retry" id="btn-retry">▶ もう一回</button>
+    <button class="btn btn-share" id="btn-share">📸 シェア</button>
+  `;
+  overlay.classList.remove('gone');
+  document.body.classList.remove('crisis');
+  boardEl.classList.remove('danger-1','danger-2');
+
+  document.getElementById('btn-retry').onclick = () => {
+    overlay.classList.add('gone');
+    cancelAnimationFrame(riseRAF);
+    initGame();
+  };
+  document.getElementById('btn-share').onclick = () => {
+    const [r] = getRank(score);
+    const txt = `🎮 ズラシ合体パズル v4\nRANK ${r} | ${score.toLocaleString()}点${isNewBest?'（NEW BEST！）':''}\n#ズラシパズル`;
+    if (navigator.share) navigator.share({title:'ズラシ合体パズル', text:txt});
+    else navigator.clipboard?.writeText(txt).then(() => alert('コピーしました！'));
+  };
+}
+
+/* ── START ── */
+document.getElementById('btn-play').addEventListener('click', () => {
+  getAC(); // unlock audio
+  overlay.classList.add('gone');
+  initGame();
+});
+bestEl.textContent = localStorage.getItem('zurashi_best') || 0;
+</script>
+</body>
+</html>
