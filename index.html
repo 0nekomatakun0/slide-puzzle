@@ -1099,64 +1099,97 @@ function doShake() {
 }
 
 /* ════════════════════════════════════════════════════════
-   ★ スワイプ入力（距離で 1マス vs 端まで）
+   スワイプ入力（完全書き直し）
+   ・スワイプ開始 → そのブロックを即ターゲットに
+   ・短スワイプ(8%) → 1マス  長スワイプ(22%) → 端まで
+   ・タップのみ → 従来の選択トグル
    ════════════════════════════════════════════════════════ */
-let tsX, tsY, tsR, tsC, tsT, swipeDone;
+let tsX, tsY, tsR, tsC, tsT, swipeDone, swipeLocked;
 
+// ★ touchstart は passive:false にしてブロック特定を確実に
 boardEl.addEventListener('touchstart', e => {
   if (!gameActive || busy) return;
-  const t = e.touches[0];
-  tsX = t.clientX; tsY = t.clientY; tsT = Date.now(); swipeDone = false;
-  const el = document.elementFromPoint(tsX, tsY)?.closest('.cell');
-  tsR = el ? +el.dataset.r : -1;
-  tsC = el ? +el.dataset.c : -1;
-  // press-down プレビュー
-  if (tsR >= 0 && grid[tsR]?.[tsC]) {
-    $cell(tsR, tsC)?.querySelector('.block')?.classList.add('press-down');
-    haptic(5);
-    setTimeout(() => $cell(tsR, tsC)?.querySelector('.block')?.classList.remove('press-down'), 130);
+  e.stopPropagation();
+  const touch = e.touches[0];
+  tsX = touch.clientX;
+  tsY = touch.clientY;
+  tsT = Date.now();
+  swipeDone  = false;
+  swipeLocked = false; // 縦スワイプと判定してロックしたか
+
+  // タッチした座標のセルを特定
+  const el = document.elementFromPoint(tsX, tsY);
+  const cellEl2 = el?.closest?.('.cell');
+  if (cellEl2) {
+    tsR = +cellEl2.dataset.r;
+    tsC = +cellEl2.dataset.c;
+  } else {
+    tsR = -1; tsC = -1;
   }
-}, {passive:true});
+
+  // ブロックがある場合だけ press-down
+  if (tsR >= 0 && tsC >= 0 && grid[tsR] && grid[tsR][tsC]) {
+    const blk = $cell(tsR, tsC)?.querySelector('.block');
+    if (blk) {
+      blk.classList.add('press-down');
+      setTimeout(() => blk.classList.remove('press-down'), 140);
+    }
+    haptic(5);
+  }
+}, {passive: false});
 
 boardEl.addEventListener('touchmove', e => {
-  if (tsR < 0 || !gameActive || busy) return;
-  const t = e.touches[0];
-  const dx = t.clientX - tsX, dy = t.clientY - tsY;
-  const absDx = Math.abs(dx);
+  e.preventDefault(); // スクロールを止めてtouchmoveを維持（passive:false必須）
 
-  // 方向確定前
-  if (absDx < 8) return;
-  if (absDx < Math.abs(dy) * 0.9) return; // 縦スワイプは無視
+  if (!gameActive || swipeDone || swipeLocked) return;
+  if (tsR < 0 || tsC < 0) return;
+  if (!grid[tsR] || !grid[tsR][tsC]) return; // ブロックがないセルは無視
+
+  const touch = e.touches[0];
+  const dx    = touch.clientX - tsX;
+  const dy    = touch.clientY - tsY;
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+
+  // 縦方向スワイプと判定 → ロックして無視
+  if (absDy > 18 && absDy > absDx * 1.5) {
+    swipeLocked = true;
+    hideSwipeIndicator();
+    clearCellHighlights();
+    return;
+  }
+
+  // まだ動いていない
+  if (absDx < 5) return;
 
   const dc = dx > 0 ? 1 : -1;
 
-  // ★ プレビューハイライト & インジケーター更新
-  if (grid[tsR]?.[tsC]) {
-    previewTargets(tsR, tsC, dc);
-    updateSwipeIndicator(absDx, dc);
-  }
+  // プレビュー & インジケーター更新
+  previewTargets(tsR, tsC, dc);
+  updateSwipeIndicator(absDx, dc);
 
-  // しきい値を超えたら発火
-  if (!swipeDone && absDx >= window.innerWidth * SWIPE_SHORT_RATIO) {
+  // しきい値(8%)を超えたら発火
+  if (absDx >= window.innerWidth * SWIPE_SHORT_RATIO) {
     swipeDone = true;
     hideSwipeIndicator();
     clearCellHighlights();
     const moveType = calcMoveAmount(absDx);
-    if (grid[tsR]?.[tsC]) {
-      selR = tsR; selC = tsC;
-      doShift(dc, moveType);
-    }
+    selR = tsR;
+    selC = tsC;
+    doShift(dc, moveType);
   }
-}, {passive:true});
+}, {passive: false}); // ★ ここが false でないと動かない
 
 boardEl.addEventListener('touchend', e => {
   hideSwipeIndicator();
   clearCellHighlights();
-  if (!swipeDone && tsR >= 0 && (Date.now() - tsT) < 280) {
-    if (grid[tsR]?.[tsC]) onBlockTap(tsR, tsC);
+  // 短いタップ（スワイプなし）→ 選択トグル
+  if (!swipeDone && !swipeLocked && tsR >= 0 && tsC >= 0 && (Date.now() - tsT) < 280) {
+    if (grid[tsR] && grid[tsR][tsC]) onBlockTap(tsR, tsC);
     else clearSel();
   }
-}, {passive:true});
+  tsR = -1; tsC = -1;
+}, {passive: true});
 
 /* ボード外タップで選択解除 */
 document.addEventListener('pointerdown', e => {
