@@ -837,16 +837,17 @@ async function doRise(){
   if(!gameActive)return;
   cancelAnimationFrame(riseRAF);
 
-  /* ★ ゲームオーバー判定: 最上段に1つでもブロックがある状態でせり上がろうとしたら終了 */
-  if(grid[0].some(v=>v>0)){triggerGO();return;}
+  /* ★ ゲームオーバー判定:
+     せり上がる前にrow[0]に1つでもブロックがある
+     → せり上がると盤面外に押し出される → GO */
+  const willEject=grid[0].some(v=>v>0);
 
   SOUNDS.rise();
   for(let r=0;r<ROWS-1;r++)grid[r]=[...grid[r+1]];
   grid[ROWS-1]=[...nextRow];nextRow=genRow();rowsRisen++;
   clearSel();renderAll(ROWS-1);renderNextRow();checkLevel();
 
-  /* せり上がり後に最上段に1つでもある → ゲームオーバー */
-  if(grid[0].some(v=>v>0)){await sleep(200);triggerGO();return;}
+  if(willEject){await sleep(200);triggerGO();return;}
 
   if(!busy){
     busy=true;comboChain=0;comboScore=0;
